@@ -48,13 +48,7 @@
       <button @click="startNewChat()" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700">New request</button>
     </div>
 
-    <div x-show="!nameSet" class="flex gap-2">
-      <input x-model="requester" @keydown.enter="setName()" placeholder="Your name or email, to get started" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm" autofocus />
-      <button @click="setName()" class="px-4 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-600 text-sm font-medium">Start</button>
-    </div>
-
-    <template x-if="nameSet">
-      <div class="flex-1 flex flex-col gap-3 min-h-0">
+    <div class="flex-1 flex flex-col gap-3 min-h-0">
         <div class="flex-1 overflow-y-auto bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-3" x-ref="chatlog">
           <template x-for="(m, i) in messages" :key="i">
             <div class="flex" :class="m.role === 'user' ? 'justify-end' : 'justify-start'">
@@ -91,7 +85,6 @@
           </button>
         </div>
       </div>
-    </template>
   </section>
 
   <!-- Team Routing Matrix -->

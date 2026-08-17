@@ -9,7 +9,6 @@ function dashboard() {
 
     // chat state
     requester: "",
-    nameSet: false,
     conversationId: null,
     messages: [],
     draft: "",
@@ -18,6 +17,15 @@ function dashboard() {
 
     async init() {
       await this.loadMe();
+      // The dashboard is already behind login (session-auth middleware
+      // blocks everything else), so use the logged-in identity as the
+      // requester automatically -- no separate "enter your name" gate
+      // that a first-time message could accidentally get typed into.
+      this.requester = (this.me && (this.me.email || this.me.username)) || "web-user";
+      const greetName = this.requester.split("@")[0];
+      this.messages = [
+        { role: "assistant", content: `Hi ${greetName}! Tell me what's going on and I'll route it to the right team.` },
+      ];
       await Promise.all([
         this.loadTeams(),
         this.loadOncall(),
@@ -56,29 +64,13 @@ function dashboard() {
       this.auditLog = data.entries || [];
     },
 
-    setName() {
-      if (!this.requester.trim()) return;
-      this.nameSet = true;
-      this.messages = [
-        {
-          role: "assistant",
-          content:
-            "Hi " + this.requester.split("@")[0] + "! Tell me what's going on and I'll route it to the right team.",
-        },
-      ];
-      this.$nextTick(() => this.scrollChat());
-    },
-
     startNewChat() {
       this.conversationId = null;
-      this.messages = [];
       this.resolution = null;
       this.draft = "";
-      if (this.nameSet) {
-        this.messages = [
-          { role: "assistant", content: "New request — what's going on?" },
-        ];
-      }
+      this.messages = [
+        { role: "assistant", content: "New request — what's going on?" },
+      ];
     },
 
     scrollChat() {
