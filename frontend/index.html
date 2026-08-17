@@ -13,6 +13,12 @@
   body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+  .chat-bubble-user { background: #4f46e5; }
+  .chat-bubble-bot { background: #1e293b; border: 1px solid #334155; }
+  @keyframes bounce-dot { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+  .typing-dot { animation: bounce-dot 1.2s infinite ease-in-out; }
+  .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.3s; }
 </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen" x-data="dashboard()" x-init="init()">
@@ -35,32 +41,61 @@
 
 <main class="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6 max-w-[1700px] mx-auto">
 
-  <!-- Submit a request -->
-  <section class="xl:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-3">
-    <h2 class="font-semibold">📥 Submit a Support Request</h2>
-    <div class="flex flex-wrap gap-2">
-      <input x-model="newRequest.requester" placeholder="Your name or email" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm w-64" />
-      <input x-model="newRequest.text" @keydown.enter="submitRequest()" placeholder="Describe your issue, e.g. 'Can't connect to VPN'" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm min-w-[300px]" />
-      <button @click="submitRequest()" :disabled="submitting" class="px-4 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-600 text-sm font-medium disabled:opacity-50">
-        <span x-text="submitting ? 'Routing…' : 'Submit'"></span>
-      </button>
+  <!-- Chat widget -->
+  <section class="xl:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-3 h-[600px]">
+    <div class="flex items-center justify-between">
+      <h2 class="font-semibold flex items-center gap-2">💬 Support Assistant</h2>
+      <button @click="startNewChat()" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700">New request</button>
     </div>
-    <div x-show="lastResult" class="text-xs bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-1">
-      <p><span class="text-slate-500">Team:</span> <span class="font-medium" x-text="lastResult && lastResult.team"></span>
-        <span class="text-slate-500 ml-2">Confidence:</span> <span x-text="lastResult && lastResult.confidence && lastResult.confidence.toFixed(2)"></span>
-        <span class="text-slate-500 ml-2">Status:</span>
-        <span class="px-2 py-0.5 rounded-full"
-          :class="lastResult && lastResult.status === 'auto_routed' ? 'bg-emerald-900 text-emerald-300' : 'bg-amber-900 text-amber-300'"
-          x-text="lastResult && lastResult.status"></span>
-      </p>
-      <p class="text-slate-400" x-text="lastResult && lastResult.reasoning"></p>
-      <p x-show="lastResult && lastResult.jira_ticket_key" class="text-slate-400">Jira ticket: <span class="font-mono" x-text="lastResult && lastResult.jira_ticket_key"></span></p>
-      <p x-show="lastResult && lastResult.assigned_oncall" class="text-slate-400">On-call: <span x-text="lastResult && lastResult.assigned_oncall"></span></p>
+
+    <div x-show="!nameSet" class="flex gap-2">
+      <input x-model="requester" @keydown.enter="setName()" placeholder="Your name or email, to get started" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm" autofocus />
+      <button @click="setName()" class="px-4 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-600 text-sm font-medium">Start</button>
     </div>
+
+    <template x-if="nameSet">
+      <div class="flex-1 flex flex-col gap-3 min-h-0">
+        <div class="flex-1 overflow-y-auto bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-3" x-ref="chatlog">
+          <template x-for="(m, i) in messages" :key="i">
+            <div class="flex" :class="m.role === 'user' ? 'justify-end' : 'justify-start'">
+              <div class="max-w-[80%] rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap"
+                :class="m.role === 'user' ? 'chat-bubble-user text-white rounded-br-sm' : 'chat-bubble-bot text-slate-200 rounded-bl-sm'"
+                x-text="m.content"></div>
+            </div>
+          </template>
+          <div x-show="waiting" class="flex justify-start">
+            <div class="chat-bubble-bot rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-400 typing-dot"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-400 typing-dot"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-400 typing-dot"></span>
+            </div>
+          </div>
+        </div>
+
+        <div x-show="resolution" class="text-xs rounded-lg p-3 border"
+          :class="resolution && resolution.status === 'auto_routed' ? 'bg-emerald-950/40 border-emerald-800' : 'bg-amber-950/40 border-amber-800'">
+          <p class="font-medium" x-show="resolution && resolution.status === 'auto_routed'">
+            ✅ Routed to <span x-text="resolution && resolution.team"></span>
+            <span x-show="resolution && resolution.jira_ticket_key"> · Ticket <span class="font-mono" x-text="resolution && resolution.jira_ticket_key"></span></span>
+          </p>
+          <p class="font-medium text-amber-300" x-show="resolution && resolution.status === 'pending_review'">
+            ⏳ Sent to human review (low confidence)
+          </p>
+        </div>
+
+        <div class="flex gap-2">
+          <input x-model="draft" @keydown.enter="send()" :disabled="waiting || (resolution && resolution.status)"
+            placeholder="Describe your issue…" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm disabled:opacity-50" />
+          <button @click="send()" :disabled="waiting || !draft || (resolution && resolution.status)" class="px-4 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-600 text-sm font-medium disabled:opacity-50">
+            Send
+          </button>
+        </div>
+      </div>
+    </template>
   </section>
 
   <!-- Team Routing Matrix -->
-  <section class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-3">
+  <section class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-3 h-[600px] overflow-y-auto">
     <h2 class="font-semibold">🗺️ Team Routing Matrix</h2>
     <div class="space-y-2">
       <template x-for="t in teams" :key="t.name">
@@ -71,14 +106,7 @@
         </div>
       </template>
     </div>
-  </section>
-
-  <!-- On-call -->
-  <section class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-3">
-    <div class="flex items-center justify-between">
-      <h2 class="font-semibold">📟 On-Call</h2>
-      <button @click="loadOncall()" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700">Refresh</button>
-    </div>
+    <h2 class="font-semibold mt-2">📟 On-Call</h2>
     <div class="space-y-1 text-xs">
       <template x-for="o in oncall" :key="o.team">
         <div class="flex justify-between border border-slate-800 rounded p-2">
@@ -149,6 +177,6 @@
 
 </main>
 
-<script src="/static/app.js?v=1"></script>
+<script src="/static/app.js?v=2"></script>
 </body>
 </html>

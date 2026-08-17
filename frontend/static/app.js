@@ -6,9 +6,15 @@ function dashboard() {
     oncall: [],
     requests: [],
     auditLog: [],
-    newRequest: { requester: "", text: "" },
-    submitting: false,
-    lastResult: null,
+
+    // chat state
+    requester: "",
+    nameSet: false,
+    conversationId: null,
+    messages: [],
+    draft: "",
+    waiting: false,
+    resolution: null,
 
     async init() {
       await this.loadMe();
@@ -50,26 +56,71 @@ function dashboard() {
       this.auditLog = data.entries || [];
     },
 
-    async submitRequest() {
-      if (!this.newRequest.text || !this.newRequest.requester) return;
-      this.submitting = true;
+    setName() {
+      if (!this.requester.trim()) return;
+      this.nameSet = true;
+      this.messages = [
+        {
+          role: "assistant",
+          content:
+            "Hi " + this.requester.split("@")[0] + "! Tell me what's going on and I'll route it to the right team.",
+        },
+      ];
+      this.$nextTick(() => this.scrollChat());
+    },
+
+    startNewChat() {
+      this.conversationId = null;
+      this.messages = [];
+      this.resolution = null;
+      this.draft = "";
+      if (this.nameSet) {
+        this.messages = [
+          { role: "assistant", content: "New request — what's going on?" },
+        ];
+      }
+    },
+
+    scrollChat() {
+      const el = this.$refs.chatlog;
+      if (el) el.scrollTop = el.scrollHeight;
+    },
+
+    async send() {
+      const text = this.draft.trim();
+      if (!text || this.waiting) return;
+      this.messages.push({ role: "user", content: text });
+      this.draft = "";
+      this.waiting = true;
+      this.$nextTick(() => this.scrollChat());
+
       try {
-        const r = await fetch("/api/requests", {
+        const r = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            requester: this.newRequest.requester,
-            text: this.newRequest.text,
-            source: "web",
+            conversation_id: this.conversationId,
+            requester: this.requester,
+            message: text,
           }),
         });
         const data = await r.json();
-        this.lastResult = data;
-        this.claudeAvailable = data.reasoning && !data.reasoning.includes("[LLM unavailable");
-        this.newRequest.text = "";
-        await Promise.all([this.loadRequests(), this.loadAudit()]);
+        this.conversationId = data.conversation_id;
+        this.messages.push({ role: "assistant", content: data.message });
+
+        if (data.status === "auto_routed" || data.status === "pending_review") {
+          this.resolution = data;
+          this.claudeAvailable = !data.message.includes("having trouble reaching");
+          await Promise.all([this.loadRequests(), this.loadAudit()]);
+        }
+      } catch (e) {
+        this.messages.push({
+          role: "assistant",
+          content: "Sorry, something went wrong reaching the server. Please try again.",
+        });
       } finally {
-        this.submitting = false;
+        this.waiting = false;
+        this.$nextTick(() => this.scrollChat());
       }
     },
   };

@@ -24,12 +24,36 @@ class Team(Base):
     ownership_description: Mapped[str] = mapped_column(Text)
 
 
+class Conversation(Base):
+    """A chat-style intake session. The bot may ask a bounded number of
+    clarifying questions (see chat_service.py) before it has enough
+    information to classify and route the request."""
+    __tablename__ = "conversations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    requester: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(30), default="in_progress")  # in_progress | auto_routed | pending_review
+    clarifying_questions_asked: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class ConversationMessage(Base):
+    __tablename__ = "conversation_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id"), index=True)
+    role: Mapped[str] = mapped_column(String(20))  # user | assistant
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class Request(Base):
     __tablename__ = "requests"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    source: Mapped[str] = mapped_column(String(20))  # slack | web | jira
+    source: Mapped[str] = mapped_column(String(20))  # slack | web | jira | web_chat
     source_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    conversation_id: Mapped[int | None] = mapped_column(ForeignKey("conversations.id"), nullable=True, index=True)
     requester: Mapped[str] = mapped_column(String(200))
     raw_text: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

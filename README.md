@@ -99,11 +99,38 @@ below 85%. This is the objective quality gate for any edit to
 |---|---|---|
 | GET | `/api/health` | Public health check |
 | GET/POST | `/auth/login`, `/auth/local-login`, `/auth/logout` | Local username/password auth |
-| POST | `/api/requests` | Submit a support request; runs classify → route → persist |
+| POST | `/api/chat` | Conversational intake — one call per chat turn. See below. |
+| GET | `/api/chat/{conversation_id}` | Fetch a conversation's full transcript |
+| POST | `/api/requests` | Legacy single-shot submit (classify → route → persist in one call, no clarifying questions) |
 | GET | `/api/requests` | List recent requests with their routing outcome |
 | GET | `/api/teams` | List the 4 teams and their ownership descriptions |
 | GET/POST | `/api/oncall` | Current on-call per team / add a rotation entry |
 | GET | `/api/audit` | Tail the audit log |
+
+### Chat intake (`POST /api/chat`)
+
+The dashboard's main UI is a chat widget, not a form. Each user message is
+one `POST /api/chat` call:
+
+```json
+{"conversation_id": null, "requester": "alice@example.com", "message": "Something is broken"}
+```
+
+The response's `status` field tells the frontend what to do next:
+- `"in_progress"` — the assistant asked a clarifying question (in `message`);
+  send the next `POST` with the same `conversation_id` and the user's answer.
+- `"auto_routed"` — confidence was high enough; `team`, `jira_ticket_key`,
+  `slack_message_ts`, `assigned_oncall` are populated.
+- `"pending_review"` — confidence was still too low even after using the
+  full clarifying-question budget; routed to human review, no
+  ticket/Slack side effects.
+
+The assistant (`app/services/chat_service.py`) may ask at most
+`SUPPORTROUTER_MAX_CLARIFYING_QUESTIONS` questions (default **2**) per
+conversation — enforced server-side even if the model tries to ask more,
+so a chat can never loop forever. Once the budget is exhausted it must
+route with its best guess (lowering confidence rather than stalling).
+
 
 ## What's not built yet (see the full plan for the phased roadmap)
 

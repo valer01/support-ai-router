@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 
-from app.routers import intake, teams, oncall, audit_router
+from app.routers import intake, teams, oncall, audit_router, chat
 from app import auth, local_users
 from app.db import init_db
 from app.seed import seed_teams_if_missing
@@ -60,6 +60,7 @@ auth.install_session_middleware(app)
 
 app.include_router(auth.router)
 app.include_router(intake.router)
+app.include_router(chat.router)
 app.include_router(teams.router)
 app.include_router(oncall.router)
 app.include_router(audit_router.router)
