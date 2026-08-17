@@ -28,6 +28,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from app.routing_matrix import TEAM_NAMES, build_system_prompt
+from app.services import ticket_context
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = os.environ.get("SUPPORTROUTER_CLAUDE_MODEL", "claude-haiku-4-5-20251001")
@@ -170,14 +171,43 @@ def _call_claude_chat(system_prompt: str, transcript: list[dict], strict: bool =
     return "\n".join(p for p in parts if p).strip()
 
 
-def chat_turn(transcript: list[dict], questions_asked_so_far: int) -> ChatDecision:
+def chat_turn(transcript: list[dict], questions_asked_so_far: int, jira_adapter=None) -> ChatDecision:
     """transcript is the full conversation so far as [{"role": "user"|"assistant",
     "content": str}, ...], ending with the latest user message.
     questions_asked_so_far counts how many "ask" turns the assistant has
-    already used in this conversation (caller tracks this)."""
+    already used in this conversation (caller tracks this).
+
+    If the model is ready to "route" but lands in the uncertain confidence
+    band, spends exactly ONE extra call with similar-past-tickets context
+    (same token-conscious pattern as classification_service.classify) before
+    returning the final decision. jira_adapter is injectable for tests."""
     if not ANTHROPIC_API_KEY:
         return _fallback("[LLM unavailable — ANTHROPIC_API_KEY not set; routed to human review]")
 
+    decision = _chat_turn_once(transcript, questions_asked_so_far)
+
+    if decision.action == "route" and ticket_context.should_enrich(decision.confidence):
+        from app.adapters.jira_adapter import get_jira_adapter
+
+        adapter = jira_adapter or get_jira_adapter()
+        full_user_text = "\n".join(m["content"] for m in transcript if m["role"] == "user")
+        block = ticket_context.fetch_similar_tickets_block(adapter, full_user_text)
+        if block:
+            # Merge into the LAST message's content rather than appending a
+            # new one -- the Anthropic Messages API requires strict
+            # user/assistant alternation, and the transcript already ends
+            # on a user turn.
+            enriched_transcript = [dict(m) for m in transcript]
+            enriched_transcript[-1]["content"] = f"{enriched_transcript[-1]['content']}\n\n{block}"
+            enriched = _chat_turn_once(enriched_transcript, questions_asked_so_far)
+            if enriched.action == "route" and (enriched.confidence or 0.0) > 0:
+                enriched.reasoning = f"[enriched with past-ticket history] {enriched.reasoning or ''}".strip()
+                return enriched
+
+    return decision
+
+
+def _chat_turn_once(transcript: list[dict], questions_asked_so_far: int) -> ChatDecision:
     system_prompt = _build_chat_system_prompt(questions_asked_so_far)
 
     for attempt, strict in enumerate([False, True]):

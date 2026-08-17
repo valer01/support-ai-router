@@ -39,6 +39,17 @@ owner per team before real traffic is routed on it.**
   below `SUPPORTROUTER_CONFIDENCE_THRESHOLD` (default `0.7`), a request goes
   to `pending_review` with **zero** adapter calls — no bad ticket, no wrong
   Slack ping.
+- **Confidence-gated ticket-history enrichment**
+  (`app/services/ticket_context.py`) — a token-conscious accuracy boost.
+  Only when a first-pass classification lands in an uncertain band (below
+  `SUPPORTROUTER_ENRICHMENT_CONFIDENCE_THRESHOLD`, default `0.85`) does the
+  system search Jira for similar past tickets (`search_similar_tickets` on
+  the Jira adapter — keyword-overlap scoring in mock mode, JQL `text ~`
+  search in real mode), compress the top few to one-line
+  `KEY: "summary" -> resolved by TEAM` facts, and spend exactly **one**
+  extra bounded LLM call with that context appended. Clear-cut requests
+  (the large majority — see the golden-set result below) never pay this
+  cost at all.
 - **Pluggable adapters** (`app/adapters/`) — Slack and Jira each have a
   `Protocol` + a `Mock*Adapter` (default, in-memory + JSONL log, no network)
   + a `Real*Adapter` (live API). Select per-process via

@@ -19,6 +19,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from app.routing_matrix import TEAM_NAMES, build_system_prompt
+from app.services import ticket_context
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 ANTHROPIC_MODEL = os.environ.get("SUPPORTROUTER_CLAUDE_MODEL", "claude-haiku-4-5-20251001")
@@ -96,10 +97,33 @@ def _call_claude(system_prompt: str, user_text: str, strict: bool = False) -> st
     return "\n".join(p for p in parts if p).strip()
 
 
-def classify(request_text: str, teams: list[dict] | None = None) -> Classification:
+def classify(request_text: str, teams: list[dict] | None = None, jira_adapter=None) -> Classification:
+    """Runs a first-pass classification. If confidence lands in the
+    uncertain band (see ticket_context.should_enrich), spends exactly ONE
+    extra call with similar-past-tickets context appended before returning
+    a final answer. jira_adapter is injectable for tests; defaults to the
+    configured adapter (mock or real) via get_jira_adapter()."""
     if not ANTHROPIC_API_KEY:
         return _fallback("[LLM unavailable — ANTHROPIC_API_KEY not set; routed to human review]")
 
+    classification = _classify_once(request_text, teams)
+
+    if ticket_context.should_enrich(classification.confidence):
+        from app.adapters.jira_adapter import get_jira_adapter
+
+        adapter = jira_adapter or get_jira_adapter()
+        block = ticket_context.fetch_similar_tickets_block(adapter, request_text)
+        if block:
+            enriched_text = f"{request_text}\n\n{block}"
+            enriched = _classify_once(enriched_text, teams)
+            if enriched.confidence > 0:
+                enriched.reasoning = f"[enriched with past-ticket history] {enriched.reasoning}"
+                return enriched
+
+    return classification
+
+
+def _classify_once(request_text: str, teams: list[dict] | None = None) -> Classification:
     system_prompt = build_system_prompt(teams)
 
     for attempt, strict in enumerate([False, True]):
