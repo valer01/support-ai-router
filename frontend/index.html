@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Support AI Router</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script>
+  tailwind.config = { darkMode: 'class' }
+</script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen" x-data="dashboard()" x-init="init()">
+
+<header class="border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 bg-slate-950/95 backdrop-blur z-10">
+  <div class="flex items-center gap-3">
+    <div class="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center font-bold">SR</div>
+    <div>
+      <h1 class="text-lg font-semibold leading-tight">Support AI Router</h1>
+      <p class="text-xs text-slate-400">Unified intake &amp; routing — IT · DevOps · Ops · Algos</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-3">
+    <span class="text-xs px-2 py-1 rounded-full" :class="claudeAvailable ? 'bg-emerald-900 text-emerald-300' : 'bg-slate-800 text-slate-400'"
+      x-text="claudeAvailable ? 'Claude: live' : 'Claude: unavailable (human review only)'"></span>
+    <span class="text-xs px-2 py-1 rounded-full bg-slate-800 border border-slate-700" x-show="me" x-text="me && me.name"></span>
+    <a href="/auth/logout" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700">Log out</a>
+  </div>
+</header>
+
+<main class="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6 max-w-[1700px] mx-auto">
+
+  <!-- Submit a request -->
+  <section class="xl:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-3">
+    <h2 class="font-semibold">📥 Submit a Support Request</h2>
+    <div class="flex flex-wrap gap-2">
+      <input x-model="newRequest.requester" placeholder="Your name or email" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm w-64" />
+      <input x-model="newRequest.text" @keydown.enter="submitRequest()" placeholder="Describe your issue, e.g. 'Can't connect to VPN'" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm min-w-[300px]" />
+      <button @click="submitRequest()" :disabled="submitting" class="px-4 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-600 text-sm font-medium disabled:opacity-50">
+        <span x-text="submitting ? 'Routing…' : 'Submit'"></span>
+      </button>
+    </div>
+    <div x-show="lastResult" class="text-xs bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-1">
+      <p><span class="text-slate-500">Team:</span> <span class="font-medium" x-text="lastResult && lastResult.team"></span>
+        <span class="text-slate-500 ml-2">Confidence:</span> <span x-text="lastResult && lastResult.confidence && lastResult.confidence.toFixed(2)"></span>
+        <span class="text-slate-500 ml-2">Status:</span>
+        <span class="px-2 py-0.5 rounded-full"
+          :class="lastResult && lastResult.status === 'auto_routed' ? 'bg-emerald-900 text-emerald-300' : 'bg-amber-900 text-amber-300'"
+          x-text="lastResult && lastResult.status"></span>
+      </p>
+      <p class="text-slate-400" x-text="lastResult && lastResult.reasoning"></p>
+      <p x-show="lastResult && lastResult.jira_ticket_key" class="text-slate-400">Jira ticket: <span class="font-mono" x-text="lastResult && lastResult.jira_ticket_key"></span></p>
+      <p x-show="lastResult && lastResult.assigned_oncall" class="text-slate-400">On-call: <span x-text="lastResult && lastResult.assigned_oncall"></span></p>
+    </div>
+  </section>
+
+  <!-- Team Routing Matrix -->
+  <section class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-3">
+    <h2 class="font-semibold">🗺️ Team Routing Matrix</h2>
+    <div class="space-y-2">
+      <template x-for="t in teams" :key="t.name">
+        <div class="border border-slate-800 rounded-lg p-3 text-xs">
+          <p class="font-medium text-sm" x-text="t.name"></p>
+          <p class="text-slate-500" x-text="t.slack_channel + ' · ' + t.jira_project_key"></p>
+          <p class="text-slate-400 mt-1" x-text="t.ownership_description"></p>
+        </div>
+      </template>
+    </div>
+  </section>
+
+  <!-- On-call -->
+  <section class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <h2 class="font-semibold">📟 On-Call</h2>
+      <button @click="loadOncall()" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700">Refresh</button>
+    </div>
+    <div class="space-y-1 text-xs">
+      <template x-for="o in oncall" :key="o.team">
+        <div class="flex justify-between border border-slate-800 rounded p-2">
+          <span x-text="o.team"></span>
+          <span :class="o.person ? 'text-emerald-400' : 'text-slate-600'" x-text="o.person || 'unassigned'"></span>
+        </div>
+      </template>
+    </div>
+  </section>
+
+  <!-- Live Requests -->
+  <section class="xl:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <h2 class="font-semibold">📋 Live Requests</h2>
+      <button @click="loadRequests()" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700">Refresh</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="text-left text-slate-500 border-b border-slate-800">
+            <th class="py-2 pr-3">Requester</th>
+            <th class="py-2 pr-3">Request</th>
+            <th class="py-2 pr-3">Team</th>
+            <th class="py-2 pr-3">Confidence</th>
+            <th class="py-2 pr-3">Status</th>
+            <th class="py-2 pr-3">Ticket</th>
+            <th class="py-2 pr-3">Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="r in requests" :key="r.id">
+            <tr class="border-b border-slate-900 hover:bg-slate-800/40">
+              <td class="py-2 pr-3" x-text="r.requester"></td>
+              <td class="py-2 pr-3 max-w-xs truncate" x-text="r.text"></td>
+              <td class="py-2 pr-3 font-medium" x-text="r.team"></td>
+              <td class="py-2 pr-3" x-text="r.confidence != null ? r.confidence.toFixed(2) : ''"></td>
+              <td class="py-2 pr-3">
+                <span class="px-2 py-0.5 rounded-full text-xs"
+                  :class="r.status === 'auto_routed' ? 'bg-emerald-900 text-emerald-300 border border-emerald-700' : 'bg-amber-900 text-amber-300 border border-amber-700'"
+                  x-text="r.status"></span>
+              </td>
+              <td class="py-2 pr-3 font-mono text-slate-500" x-text="r.jira_ticket_key"></td>
+              <td class="py-2 pr-3 text-slate-500" x-text="r.created_at && new Date(r.created_at).toLocaleString()"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Audit Log -->
+  <section class="xl:col-span-3 bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <h2 class="font-semibold">📜 Audit Log</h2>
+      <button @click="loadAudit()" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700">Refresh</button>
+    </div>
+    <div class="h-48 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+      <template x-for="(e, i) in auditLog" :key="i">
+        <div class="border border-slate-800 rounded p-2">
+          <div class="flex justify-between text-slate-400">
+            <span x-text="e.action"></span><span x-text="e.actor"></span>
+          </div>
+          <p class="text-slate-500" x-text="new Date(e.ts).toLocaleString()"></p>
+        </div>
+      </template>
+    </div>
+  </section>
+
+</main>
+
+<script src="/static/app.js?v=1"></script>
+</body>
+</html>

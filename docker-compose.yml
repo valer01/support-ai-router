@@ -1,0 +1,29 @@
+services:
+  support-ai-router:
+    build: .
+    image: support-ai-router:local
+    container_name: support-ai-router
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - SUPPORTROUTER_DATA_DIR=/app/data
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # - SUPPORTROUTER_CLAUDE_MODEL=claude-haiku-4-5-20251001
+      # - SUPPORTROUTER_CONFIDENCE_THRESHOLD=0.7
+      - SUPPORTROUTER_SLACK_MODE=${SUPPORTROUTER_SLACK_MODE:-mock}
+      - SUPPORTROUTER_JIRA_MODE=${SUPPORTROUTER_JIRA_MODE:-mock}
+      # - SLACK_BOT_TOKEN=
+      # - JIRA_BASE_URL=
+      # - JIRA_EMAIL=
+      # - JIRA_API_TOKEN=
+      # - SUPPORTROUTER_SESSION_SECRET=
+      # - SUPPORTROUTER_SEED_USERNAME=support.admin
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped

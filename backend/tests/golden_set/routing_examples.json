@@ -1,0 +1,242 @@
+[
+  {
+    "text": "Can't connect to VPN",
+    "expected_team": "IT"
+  },
+  {
+    "text": "Need a new laptop, mine won't boot",
+    "expected_team": "IT"
+  },
+  {
+    "text": "MFA app isn't generating codes",
+    "expected_team": "IT"
+  },
+  {
+    "text": "Forgot my Windows password",
+    "expected_team": "IT"
+  },
+  {
+    "text": "Need Photoshop license",
+    "expected_team": "IT"
+  },
+  {
+    "text": "New hire starts Monday, needs accounts provisioned",
+    "expected_team": "IT"
+  },
+  {
+    "text": "Printer on 3rd floor is jammed",
+    "expected_team": "IT"
+  },
+  {
+    "text": "Zoom keeps crashing on my machine",
+    "expected_team": "IT"
+  },
+  {
+    "text": "Need access to the shared drive for Finance",
+    "expected_team": "IT"
+  },
+  {
+    "text": "My monitor won't turn on",
+    "expected_team": "IT"
+  },
+  {
+    "text": "Can I get admin rights on my laptop to install X?",
+    "expected_team": "IT"
+  },
+  {
+    "text": "Email isn't syncing on my phone",
+    "expected_team": "IT"
+  },
+  {
+    "text": "Need a loaner laptop for a conference",
+    "expected_team": "IT"
+  },
+  {
+    "text": "SSO login loop on the HR portal",
+    "expected_team": "IT"
+  },
+  {
+    "text": "Bluetooth headset won't pair",
+    "expected_team": "IT"
+  },
+  {
+    "text": "Production deploy failed",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "CI pipeline stuck on the build step",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "Need a new AWS S3 bucket for the reports service",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "Grafana dashboard shows no data since this morning",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "Kubernetes pod keeps crash-looping",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "Need to rotate a secret in Vault",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "ArgoCD app is stuck OutOfSync",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "Can we get autoscaling on the pricing-api service?",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "SSL cert expired on api.capitolis.com",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "Need a new environment for QA testing",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "Docker image build is failing on main",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "Database connection pool exhausted, service returning 500s",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "Need read access to the staging cluster",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "Terraform apply failing with a state lock error",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "Alerting is too noisy, need to tune thresholds",
+    "expected_team": "DevOps"
+  },
+  {
+    "text": "Trade didn't settle",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "Market data feed from Bloomberg looks stale",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "End-of-day reconciliation shows a break",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "Client onboarding is stuck at KYC step",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "Wrong position showing in the risk report",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "Corporate action wasn't applied to the portfolio",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "Counterparty confirm hasn't come through",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "NAV calculation looks off for fund X",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "Trade booked with wrong currency",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "Settlement instruction rejected by custodian",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "Need to reprocess yesterday's batch job for fees",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "Client statement generation failed overnight",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "FX rate feed hasn't updated since 9am",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "Duplicate trade entry in the blotter",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "Regulatory report didn't submit on time",
+    "expected_team": "Ops"
+  },
+  {
+    "text": "Model output looks wrong",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "Backtest results don't match production for the same date",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "Pricing model is returning NaN for illiquid bonds",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "Need a new factor added to the risk model",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "Quant library version bump broke a downstream calc",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "Volatility surface looks inverted",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "Strategy signal fired when it shouldn't have",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "Need historical tick data pulled for a research request",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "Model calibration hasn't run since last week",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "Greeks calculation seems off for the options book",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "New model needs code review before going to prod",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "Curve construction is failing to converge",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "Can we get a sandbox to test a new signal?",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "Model version in prod doesn't match what was approved",
+    "expected_team": "Algos"
+  },
+  {
+    "text": "Basis risk calc looks inconsistent across books",
+    "expected_team": "Algos"
+  }
+]
